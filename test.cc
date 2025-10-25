@@ -5,5 +5,5 @@
 using namespace msgpack;
 
 int main() {
-  assert(unpack(pack(3)) == 3);
+  assert(unpack<uint64_t>(*pack(uint64_t(3))) == 3);
 }
