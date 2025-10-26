@@ -370,10 +370,11 @@ inline std::optional<int64_t> msgpack::impl<int64_t>::unpack(Unpacker &unpacker)
     }
 
     case msgpack::format::int_64: {
-      return unpacker.size() < 8 ? std::nullopt : ok<int64_t>((read() << 56) | (read() << 48) |
-                                                              (read() << 40) | (read() << 32) |
-                                                              (read() << 24) | (read() << 16) |
-                                                              (read() <<  8) | (read() <<  0));
+      return unpacker.size() < 8 ? std::nullopt
+                                 : ok<int64_t>((read() << 56) | (read() << 48) |
+                                               (read() << 40) | (read() << 32) |
+                                               (read() << 24) | (read() << 16) |
+                                               (read() <<  8) | (read() <<  0));
     }
 
     default: {
