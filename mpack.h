@@ -132,15 +132,15 @@ constexpr std::byte negative_fixint {0xe0};
 #define $unwrap(opt_expr) ({ auto&& opt = (opt_expr); if (!opt) $fail(); *opt; })
 
 // nil
-define_pack(std::nullptr_t) { packer.push(msgpack::format::nil); }
-define_unpack(std::nullptr_t) { $expect_byte(msgpack::format::nil); return nullptr; }
+define_pack(std::nullptr_t) { packer.push(format::nil); }
+define_unpack(std::nullptr_t) { $expect_byte(format::nil); return nullptr; }
 
 // bool
-define_pack(bool) { packer.push(value ? msgpack::format::true_ : msgpack::format::false_); }
+define_pack(bool) { packer.push(value ? format::true_ : format::false_); }
 define_unpack(bool) {
   switch ($expect_read()) {
-    case msgpack::format::true_: return true;
-    case msgpack::format::false_: return false;
+    case format::true_: return true;
+    case format::false_: return false;
     default: $fail();
   }
 }
@@ -174,10 +174,10 @@ define_unpack(uint32_t) { return detail::unpack_uint<uint32_t>(unpacker); }
 define_pack(uint64_t) {
   constexpr uint64_t one = 1;
   if      (value < (one << 7))  goto pack8;
-  else if (value < (one << 8))  { packer.push(msgpack::format::uint_8);  goto pack8; }
-  else if (value < (one << 16)) { packer.push(msgpack::format::uint_16); goto pack16; }
-  else if (value < (one << 32)) { packer.push(msgpack::format::uint_32); goto pack32; }
-  else                          { packer.push(msgpack::format::uint_64); goto pack64; }
+  else if (value < (one << 8))  { packer.push(format::uint_8);  goto pack8; }
+  else if (value < (one << 16)) { packer.push(format::uint_16); goto pack16; }
+  else if (value < (one << 32)) { packer.push(format::uint_32); goto pack32; }
+  else                          { packer.push(format::uint_64); goto pack64; }
 
   return;
 
@@ -200,10 +200,10 @@ define_unpack(uint64_t) {
 
   const std::byte first_byte = $expect_read();
   switch (first_byte) {
-    case msgpack::format::uint_8:   { $expect(unpacker.size() >= 1); return read8(); }
-    case msgpack::format::uint_16:  { $expect(unpacker.size() >= 2); return read16(); }
-    case msgpack::format::uint_32:  { $expect(unpacker.size() >= 4); return read32(); }
-    case msgpack::format::uint_64:  { $expect(unpacker.size() >= 8); return read64(); }
+    case format::uint_8:   { $expect(unpacker.size() >= 1); return read8(); }
+    case format::uint_16:  { $expect(unpacker.size() >= 2); return read16(); }
+    case format::uint_32:  { $expect(unpacker.size() >= 4); return read32(); }
+    case format::uint_64:  { $expect(unpacker.size() >= 8); return read64(); }
 
     default: {
       const uint8_t value = static_cast<uint8_t>(first_byte);
@@ -226,10 +226,10 @@ define_pack(int64_t) {
   const uint64_t uvalue = value;
   if      (value >= 0)            pack_one<uint64_t>(packer, uvalue);
   else if (value >= (-one << 5))  packer.push(uvalue);
-  else if (value >= (-one << 8))  { packer.push(msgpack::format::int_8); goto pack8; }
-  else if (value >= (-one << 16)) { packer.push(msgpack::format::int_16); goto pack16; }
-  else if (value >= (-one << 32)) { packer.push(msgpack::format::int_32); goto pack32; }
-  else                            { packer.push(msgpack::format::int_64); goto pack64; }
+  else if (value >= (-one << 8))  { packer.push(format::int_8); goto pack8; }
+  else if (value >= (-one << 16)) { packer.push(format::int_16); goto pack16; }
+  else if (value >= (-one << 32)) { packer.push(format::int_32); goto pack32; }
+  else                            { packer.push(format::int_64); goto pack64; }
 
   return;
 
@@ -252,15 +252,15 @@ define_unpack(int64_t) {
 
   const std::byte first_byte = $expect_read();
   switch (first_byte) {
-    case msgpack::format::uint_8:   { $expect(unpacker.size() >= 1); return read8(); }
-    case msgpack::format::int_8:    { $expect(unpacker.size() >= 1); return static_cast<int8_t>(read8()); }
-    case msgpack::format::uint_16:  { $expect(unpacker.size() >= 2); return read16(); }
-    case msgpack::format::int_16:   { $expect(unpacker.size() >= 2); return static_cast<int16_t>(read16()); }
-    case msgpack::format::uint_32:  { $expect(unpacker.size() >= 4); return read32(); }
-    case msgpack::format::int_32:   { $expect(unpacker.size() >= 4); return static_cast<int32_t>(read32()); }
-    case msgpack::format::int_64:   { $expect(unpacker.size() >= 8); return read64(); }
+    case format::uint_8:   { $expect(unpacker.size() >= 1); return read8(); }
+    case format::int_8:    { $expect(unpacker.size() >= 1); return static_cast<int8_t>(read8()); }
+    case format::uint_16:  { $expect(unpacker.size() >= 2); return read16(); }
+    case format::int_16:   { $expect(unpacker.size() >= 2); return static_cast<int16_t>(read16()); }
+    case format::uint_32:  { $expect(unpacker.size() >= 4); return read32(); }
+    case format::int_32:   { $expect(unpacker.size() >= 4); return static_cast<int32_t>(read32()); }
+    case format::int_64:   { $expect(unpacker.size() >= 8); return read64(); }
 
-    case msgpack::format::uint_64: {
+    case format::uint_64: {
       $expect(unpacker.size() >= 8);
       const uint64_t bits = read64();
       $expect_in_range(bits, int64_t);
