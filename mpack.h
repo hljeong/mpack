@@ -1,10 +1,12 @@
 #pragma once
 
+#include <bit>
 #include <concepts>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <span>
+#include <tuple>
 #include <vector>
 
 namespace msgpack {
@@ -74,9 +76,11 @@ template <class ...Ts>
 requires (sizeof...(Ts) > 1)
 std::optional<std::tuple<Ts...>> unpack(const BufferView &buffer) {
   Unpacker unpacker(buffer);
-  const auto result = std::make_tuple(unpack_one<Ts>(unpacker)...);
+  // use initializer list to force left-to-right eval
+  const std::tuple<std::optional<Ts>...> result{unpack_one<Ts>(unpacker)...};
   const bool ok = (std::get<std::optional<Ts>>(result) && ...) && unpacker.at_end();
-  return ok ? std::make_tuple(*std::get<std::optional<Ts>>(result)...) : std::nullopt;
+  if (ok) return {*std::get<std::optional<Ts>>(result)...};
+  else return std::nullopt;
 }
 
 namespace format {
@@ -275,6 +279,65 @@ define_unpack(int64_t) {
     }
   }
 
+}
+
+// the following technique is inspired by quantum bogosort
+static_assert(sizeof(float) == 4);
+static_assert(std::numeric_limits<float>::is_iec559);
+
+define_pack(float) {
+  packer.push(format::float_32);
+  if constexpr (std::endian::native == std::endian::big) {
+    for (const uint8_t *ptr = reinterpret_cast<const uint8_t *>(&value), *end = ptr + 4; ptr < end; ptr++)
+      packer.push(*ptr);
+  } else {
+    for (const uint8_t *start = reinterpret_cast<const uint8_t *>(&value), *ptr = start + 3; ptr >= start; ptr--)
+      packer.push(*ptr);
+  }
+}
+
+define_unpack(float) {
+  auto read8 = [&]() { return static_cast<uint32_t>(unpacker.read()); };
+
+  $expect_byte(format::float_32);
+  $expect(unpacker.size() >= 4);
+  if constexpr (std::endian::native == std::endian::big) {
+    const uint32_t bit_value = read8() | (read8() << 8) | (read8() << 16) | (read8() << 24);
+    return *reinterpret_cast<const float *>(&bit_value);
+  } else {
+    const uint32_t bit_value = (read8() << 24) | (read8() << 16) | (read8() << 8) | read8();
+    return *reinterpret_cast<const float *>(&bit_value);
+  }
+}
+
+static_assert(sizeof(double) == 8);
+static_assert(std::numeric_limits<double>::is_iec559);
+
+define_pack(double) {
+  packer.push(format::float_64);
+  if constexpr (std::endian::native == std::endian::big) {
+    for (const uint8_t *ptr = reinterpret_cast<const uint8_t *>(&value), *end = ptr + 8; ptr < end; ptr++)
+      packer.push(*ptr);
+  } else {
+    for (const uint8_t *start = reinterpret_cast<const uint8_t *>(&value), *ptr = start + 7; ptr >= start; ptr--)
+      packer.push(*ptr);
+  }
+}
+
+define_unpack(double) {
+  auto read8 = [&]() { return static_cast<uint64_t>(unpacker.read()); };
+
+  $expect_byte(format::float_64);
+  $expect(unpacker.size() >= 8);
+  if constexpr (std::endian::native == std::endian::big) {
+    const uint64_t bit_value = (read8() <<  0) | (read8() <<  8) | (read8() << 16) | (read8() << 24)
+                             | (read8() << 32) | (read8() << 40) | (read8() << 48) | (read8() << 56);
+    return *reinterpret_cast<const double *>(&bit_value);
+  } else {
+    const uint64_t bit_value = (read8() << 56) | (read8() << 48) | (read8() << 40) | (read8() << 32)
+                             | (read8() << 24) | (read8() << 16) | (read8() <<  8) | (read8() <<  0);
+    return *reinterpret_cast<const double *>(&bit_value);
+  }
 }
 
 #undef $unwrap
