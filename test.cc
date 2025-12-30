@@ -65,4 +65,6 @@ int main() {
   assert(test<double>(3.14159265358979, bytes(0xcb, 0x40, 0x09, 0x21, 0xfb, 0x54, 0x44, 0x2d, 0x11)));
 
   assert(!unpack<uint32_t>(pack(-7)));
+
+  std::cout << "all tests passed" << std::endl;
 }
