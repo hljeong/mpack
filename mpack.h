@@ -6,6 +6,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -125,8 +126,8 @@ constexpr std::byte negative_fixint {0xe0};
 }
 
 // syntactic sugar overdose :)
-#define define_pack(T) template<> inline void msgpack::impl<T>::pack(Packer &packer, const T &value)
-#define define_unpack(T) template<> inline std::optional<T> msgpack::impl<T>::unpack(Unpacker &unpacker)
+#define $define_pack(T) template<> inline void msgpack::impl<T>::pack(Packer &packer, const T &value)
+#define $define_unpack(T) template<> inline std::optional<T> msgpack::impl<T>::unpack(Unpacker &unpacker)
 #define $fail() return std::nullopt
 #define $expect(cond) if (!static_cast<bool>(cond)) $fail()
 #define $expect_read() ({ $expect(!unpacker.at_end()); unpacker.read(); })
@@ -136,12 +137,12 @@ constexpr std::byte negative_fixint {0xe0};
 #define $unwrap(opt_expr) ({ auto&& opt = (opt_expr); if (!opt) $fail(); *opt; })
 
 // nil
-define_pack(std::nullptr_t) { packer.push(format::nil); }
-define_unpack(std::nullptr_t) { $expect_byte(format::nil); return nullptr; }
+$define_pack(std::nullptr_t) { packer.push(format::nil); }
+$define_unpack(std::nullptr_t) { $expect_byte(format::nil); return nullptr; }
 
 // bool
-define_pack(bool) { packer.push(value ? format::true_ : format::false_); }
-define_unpack(bool) {
+$define_pack(bool) { packer.push(value ? format::true_ : format::false_); }
+$define_unpack(bool) {
   switch ($expect_read()) {
     case format::true_: return true;
     case format::false_: return false;
@@ -168,14 +169,14 @@ std::optional<T> unpack_int(Unpacker &unpacker) {
 
 }
 
-define_pack(uint8_t)    { pack_one<uint64_t>(packer, value); }
-define_unpack(uint8_t)  { return detail::unpack_uint<uint8_t>(unpacker); }
-define_pack(uint16_t)   { pack_one<uint64_t>(packer, value); }
-define_unpack(uint16_t) { return detail::unpack_uint<uint16_t>(unpacker); }
-define_pack(uint32_t)   { pack_one<uint64_t>(packer, value); }
-define_unpack(uint32_t) { return detail::unpack_uint<uint32_t>(unpacker); }
+$define_pack(uint8_t)    { pack_one<uint64_t>(packer, value); }
+$define_unpack(uint8_t)  { return detail::unpack_uint<uint8_t>(unpacker); }
+$define_pack(uint16_t)   { pack_one<uint64_t>(packer, value); }
+$define_unpack(uint16_t) { return detail::unpack_uint<uint16_t>(unpacker); }
+$define_pack(uint32_t)   { pack_one<uint64_t>(packer, value); }
+$define_unpack(uint32_t) { return detail::unpack_uint<uint32_t>(unpacker); }
 
-define_pack(uint64_t) {
+$define_pack(uint64_t) {
   constexpr uint64_t one = 1;
   if      (value < (one << 7))  goto pack8;
   else if (value < (one << 8))  { packer.push(format::uint_8);  goto pack8; }
@@ -196,7 +197,7 @@ define_pack(uint64_t) {
   packer.push(value >>  0);
 }
 
-define_unpack(uint64_t) {
+$define_unpack(uint64_t) {
   auto read8 = [&]() { return std::to_integer<uint64_t>(unpacker.read()); };
   auto read16 = [&]() { return (read8()  <<  8) | read8(); };
   auto read32 = [&]() { return (read16() << 16) | read16(); };
@@ -218,14 +219,14 @@ define_unpack(uint64_t) {
   }
 }
 
-define_pack(int8_t)     { pack_one<int64_t>(packer, value); }
-define_unpack(int8_t)   { return detail::unpack_int<int8_t>(unpacker); }
-define_pack(int16_t)    { pack_one<int64_t>(packer, value); }
-define_unpack(int16_t)  { return detail::unpack_int<int16_t>(unpacker); }
-define_pack(int32_t)    { pack_one<int64_t>(packer, value); }
-define_unpack(int32_t)  { return detail::unpack_int<int32_t>(unpacker); }
+$define_pack(int8_t)     { pack_one<int64_t>(packer, value); }
+$define_unpack(int8_t)   { return detail::unpack_int<int8_t>(unpacker); }
+$define_pack(int16_t)    { pack_one<int64_t>(packer, value); }
+$define_unpack(int16_t)  { return detail::unpack_int<int16_t>(unpacker); }
+$define_pack(int32_t)    { pack_one<int64_t>(packer, value); }
+$define_unpack(int32_t)  { return detail::unpack_int<int32_t>(unpacker); }
 
-define_pack(int64_t) {
+$define_pack(int64_t) {
   constexpr int64_t one = 1;
   const uint64_t uvalue = value;
   if      (value >= 0)            pack_one<uint64_t>(packer, uvalue);
@@ -248,7 +249,7 @@ define_pack(int64_t) {
   packer.push(uvalue >>  0);
 }
 
-define_unpack(int64_t) {
+$define_unpack(int64_t) {
   auto read8 = [&]() { return std::to_integer<uint64_t>(unpacker.read()); };
   auto read16 = [&]() { return (read8()  <<  8) | read8(); };
   auto read32 = [&]() { return (read16() << 16) | read16(); };
@@ -285,7 +286,7 @@ define_unpack(int64_t) {
 static_assert(sizeof(float) == 4);
 static_assert(std::numeric_limits<float>::is_iec559);
 
-define_pack(float) {
+$define_pack(float) {
   packer.push(format::float_32);
   if constexpr (std::endian::native == std::endian::big) {
     for (const uint8_t *ptr = reinterpret_cast<const uint8_t *>(&value), *end = ptr + 4; ptr < end; ptr++)
@@ -296,7 +297,7 @@ define_pack(float) {
   }
 }
 
-define_unpack(float) {
+$define_unpack(float) {
   auto read8 = [&]() { return std::to_integer<uint32_t>(unpacker.read()); };
 
   $expect_byte(format::float_32);
@@ -313,7 +314,7 @@ define_unpack(float) {
 static_assert(sizeof(double) == 8);
 static_assert(std::numeric_limits<double>::is_iec559);
 
-define_pack(double) {
+$define_pack(double) {
   packer.push(format::float_64);
   if constexpr (std::endian::native == std::endian::big) {
     for (const uint8_t *ptr = reinterpret_cast<const uint8_t *>(&value), *end = ptr + 8; ptr < end; ptr++)
@@ -324,7 +325,7 @@ define_pack(double) {
   }
 }
 
-define_unpack(double) {
+$define_unpack(double) {
   auto read8 = [&]() { return std::to_integer<uint64_t>(unpacker.read()); };
 
   $expect_byte(format::float_64);
@@ -340,6 +341,47 @@ define_unpack(double) {
   }
 }
 
+$define_pack(std::string) {
+  auto pack8 = [&](const uint64_t value) { packer.push(static_cast<uint8_t>(value)); };
+  auto pack16 = [&](const uint64_t value) { pack8(value >> 8); pack8(value); };
+  auto pack32 = [&](const uint64_t value) { pack16(value >> 16); pack16(value); };
+
+  constexpr uint64_t one = 1;
+  const size_t size = value.size();
+  if      (size < (one << 5))  packer.push(0b10100000 | size);
+  else if (size < (one << 8))  { packer.push(format::str_8);  pack8(size); }
+  else if (size < (one << 16)) { packer.push(format::str_16); pack16(size); }
+  else if (size < (one << 32)) { packer.push(format::str_32); pack32(size); }
+  else                         std::abort();  // just don't?
+
+  for (const char c : value) packer.push(static_cast<uint8_t>(c));
+}
+
+$define_unpack(std::string) {
+  auto read8 = [&]() { return std::to_integer<uint64_t>(unpacker.read()); };
+  auto read16 = [&]() { return (read8()  <<  8) | read8(); };
+  auto read32 = [&]() { return (read16() << 16) | read16(); };
+  auto read = [&](const size_t size) {
+    std::string s; s.reserve(size);
+    for (size_t i = 0; i < size; i++) s.push_back(static_cast<char>(unpacker.read()));
+    return s;
+  };
+
+  const std::byte first_byte = $expect_read();
+  switch (first_byte) {
+    case format::str_8:   { $expect(unpacker.size() >= 1); return read(static_cast<size_t>(read8())); }
+    case format::str_16:  { $expect(unpacker.size() >= 2); return read(static_cast<size_t>(read16())); }
+    case format::str_32:  { $expect(unpacker.size() >= 4); return read(static_cast<size_t>(read32())); }
+
+    default: {
+      const uint8_t value = std::to_integer<uint8_t>(first_byte);
+      if ((value & 0b1010'0000) != 0b1010'0000) $fail();
+      const size_t size = value & 0b0001'1111;
+      return read(size);
+    }
+  }
+}
+
 #undef $unwrap
 #undef $expect_in_range
 #undef $expect_in_urange
@@ -347,5 +389,5 @@ define_unpack(double) {
 #undef $expect_read
 #undef $expect
 #undef $fail
-#undef define_unpack
-#undef define_pack
+#undef $define_unpack
+#undef $define_pack
