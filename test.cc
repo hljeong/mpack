@@ -9,13 +9,15 @@
 using namespace msgpack;
 
 template <class T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vector) {
+std::ostream &operator<<(std::ostream &os, const std::vector<T> &vector) {
   os << '[';
   bool first = true;
   for (const auto &elem : vector) {
     if (!first) os << ", ";
     first = false;
-    os << elem;
+    // disgusting
+    if constexpr (std::is_same_v<T, uint8_t>) os << static_cast<uint32_t>(elem);
+    else os << elem;
   }
   return os << ']';
 }
@@ -92,6 +94,8 @@ int main() {
                                  0x65, 0x66)));
   // str 16 and str 32 are not tested for undisclosed reasons
   assert(test<std::vector<uint8_t>>({}, bytes(0xc4, 0x00)));
+  assert(test<std::vector<uint8_t>>({1, 2, 3, 4, 5, 6, 7, 8}, bytes(0xc4, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08)));
+  // bin 16 and bin 32 are not tested for undisclosed reasons
 
   assert(!unpack<uint32_t>(pack(-7)));
 
