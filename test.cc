@@ -69,6 +69,32 @@ bool test(T value, const Buffer &expected) {
   return true;
 }
 
+struct vec3 {
+  float x;
+  std::string y;
+  uint8_t z;
+
+  bool operator==(const vec3 &) const = default;
+};
+
+define_pack(vec3) {
+  do_pack(value.x);
+  do_pack(value.y);
+  do_pack(value.z);
+}
+
+define_unpack(vec3) {
+  return vec3{
+    .x = do_unpack(float),
+    .y = do_unpack(std::string),
+    .z = do_unpack(uint8_t),
+  };
+}
+
+std::ostream &operator<<(std::ostream &os, const vec3 &value) {
+  return os << "{ .x = " << value.x << ", .y = \"" << value.y << "\", .z = " << value.z << " }";
+}
+
 int main() {
   assert(test<bool>(true, bytes(0xc3)));
   assert(test<bool>(false, bytes(0xc2)));
@@ -96,6 +122,7 @@ int main() {
   assert(test<std::vector<uint8_t>>({}, bytes(0xc4, 0x00)));
   assert(test<std::vector<uint8_t>>({1, 2, 3, 4, 5, 6, 7, 8}, bytes(0xc4, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08)));
   // bin 16 and bin 32 are not tested for undisclosed reasons
+  assert(test<vec3>({1.25, "727", 0}, bytes(0xca, 0x3f, 0xa0, 0x00, 0x00, 0xa3, 0x37, 0x32, 0x37, 0x00)));
 
   assert(!unpack<uint32_t>(pack(-7)));
 
