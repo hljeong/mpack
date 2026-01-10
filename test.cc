@@ -8,6 +8,18 @@
 
 using namespace msgpack;
 
+template <class T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vector) {
+  os << '[';
+  bool first = true;
+  for (const auto &elem : vector) {
+    if (!first) os << ", ";
+    first = false;
+    os << elem;
+  }
+  return os << ']';
+}
+
 template <class ...Ts>
 Buffer bytes(Ts... bytes) { return {std::byte(bytes)...}; }
 
@@ -39,7 +51,7 @@ bool test(T value, const Buffer &expected) {
 
   const std::optional<T> unpacked_opt = unpack<T>(packed);
   if (!unpacked_opt) {
-    std::cout << "failed to unpack " << packed_str << " (" << value << ")" << std::endl << std::endl;
+    std::cout << "failed to unpack " << packed_str << " (expected " << value << ")" << std::endl << std::endl;
     return false;
   }
 
@@ -79,6 +91,7 @@ int main() {
                                  0x77, 0x78, 0x79, 0x7a, 0x61, 0x62, 0x63, 0x64,
                                  0x65, 0x66)));
   // str 16 and str 32 are not tested for undisclosed reasons
+  assert(test<std::vector<uint8_t>>({}, bytes(0xc4, 0x00)));
 
   assert(!unpack<uint32_t>(pack(-7)));
 

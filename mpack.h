@@ -187,8 +187,7 @@ void pack_bytes(Packer &packer, const T &value) {
 
   constexpr uint64_t one = 1;
   const size_t size = value.size();
-  if      (size < (one << 5))  packer.push(0b10100000 | size);
-  else if (size < (one << 8))  { packer.push(fmt8);  pack8(size); }
+  if (size < (one << 8))       { packer.push(fmt8);  pack8(size); }
   else if (size < (one << 16)) { packer.push(fmt16); pack16(size); }
   else if (size < (one << 32)) { packer.push(fmt32); pack32(size); }
   else                         throw;  // don't do it
@@ -206,9 +205,9 @@ std::optional<T> unpack_bytes(Unpacker &unpacker, const std::function<T(const si
 
   const std::byte first_byte = $expect_read();
   switch (first_byte) {
-    case format::str_8:   { $expect(unpacker.size() >= 1); return read(static_cast<size_t>(read8())); }
-    case format::str_16:  { $expect(unpacker.size() >= 2); return read(static_cast<size_t>(read16())); }
-    case format::str_32:  { $expect(unpacker.size() >= 4); return read(static_cast<size_t>(read32())); }
+    case fmt8:  { $expect(unpacker.size() >= 1); return read(static_cast<size_t>(read8())); }
+    case fmt16: { $expect(unpacker.size() >= 2); return read(static_cast<size_t>(read16())); }
+    case fmt32: { $expect(unpacker.size() >= 4); return read(static_cast<size_t>(read32())); }
     default: $fail();
   }
 }
@@ -406,6 +405,18 @@ $define_unpack(std::string) {
   const uint8_t first_byte_value = std::to_integer<uint8_t>(first_byte);
   if ((first_byte_value & 0b1010'0000) == 0b1010'0000) { $expect_read(); return read(first_byte_value & 0b0001'1111); }
   return detail::unpack_bytes<std::string, format::str_8, format::str_16, format::str_32>(unpacker, read);
+}
+
+$define_pack(std::vector<uint8_t>) { return detail::pack_bytes<std::vector<uint8_t>, format::bin_8, format::bin_16, format::bin_32>(packer, value); }
+
+$define_unpack(std::vector<uint8_t>) {
+  auto read = [&](const size_t size) {
+    std::vector<uint8_t> b; b.reserve(size);
+    for (size_t i = 0; i < size; i++) b.push_back(static_cast<uint8_t>(unpacker.read()));
+    return b;
+  };
+
+  return detail::unpack_bytes<std::vector<uint8_t>, format::bin_8, format::bin_16, format::bin_32>(unpacker, read);
 }
 
 #undef $unwrap
